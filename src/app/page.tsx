@@ -1,30 +1,27 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { generateRoomCode } from "@/lib/room-code";
+import { PhotoboothTitle } from "./_components/PhotoboothTitle";
+import { CoinBooth } from "./_components/CoinBooth";
+import { useBoothEntry } from "./_hooks/useBoothEntry";
 
 export default function LandingPage() {
-  const router = useRouter();
-
-  function handleCreateSession() {
-    const roomId = generateRoomCode();
-    router.push(`/session/${roomId}`);
-  }
+  const { phase, insertCoin, handleCurtainClosed, handleTransitionDone } = useBoothEntry();
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-      {/* TODO: swap this placeholder background for the wood-texture vintage photobooth look */}
-      <h1 className="text-4xl font-semibold">photoboth</h1>
-      <p className="max-w-sm text-sm text-neutral-500">
-        A photobooth for long-distance couples. Start a session, send the link
-        to your partner, and take photos together in real time.
+    <main className="flex flex-1 flex-col items-center justify-center gap-10 bg-wood-texture px-6 py-10">
+      <PhotoboothTitle />
+      <CoinBooth
+        closing={phase !== "idle"}
+        onInsertCoin={insertCoin}
+        onCurtainClosed={handleCurtainClosed}
+      />
+      <p className="max-w-sm text-center text-sm text-amber-100/80">
+        A photobooth for long-distance couples. Insert a coin to start a session and send the link to your partner.
       </p>
-      <button
-        onClick={handleCreateSession}
-        className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white hover:bg-neutral-700"
-      >
-        Create a session
-      </button>
+
+      {phase === "transitioning" && (
+        <div className="fixed inset-0 z-50 animate-fade-in bg-velvet-red" onAnimationEnd={handleTransitionDone} />
+      )}
     </main>
   );
 }
