@@ -1,9 +1,6 @@
-import { useState } from "react";
+import { useIsClient } from "@/shared/hooks/useIsClient";
 
 export function useCapturedPhoto(roomId: string) {
-  const [image] = useState<string | null>(() =>
-    typeof window === "undefined" ? null : sessionStorage.getItem(`photoboth:${roomId}`)
-  );
-
-  return image;
+  const isClient = useIsClient();
+  return isClient ? sessionStorage.getItem(`photoboth:${roomId}`) : null;
 }
