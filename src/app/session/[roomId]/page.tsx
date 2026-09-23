@@ -10,7 +10,8 @@ import { CountdownOverlay } from "./_components/CountdownOverlay";
 
 export default function SessionPage() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { localVideoRef, remoteVideoRef, status, countdown, startCountdown } = useRoomConnection(roomId);
+  const { localVideoRef, remoteVideoRef, status, countdown, round, totalRounds, startCountdown } =
+    useRoomConnection(roomId);
 
   const isClient = useIsClient();
   const shareUrl = isClient ? window.location.href : "";
@@ -24,25 +25,35 @@ export default function SessionPage() {
     );
   }
 
-  if (status !== "connected") {
+  if (status !== "connected" && status !== "flash") {
     return <WaitingRoom roomId={roomId} shareUrl={shareUrl} />;
   }
 
+  const sessionStarted = round > 0 || countdown !== null;
+
   return (
-    <main className="flex flex-1 flex-col items-center gap-6 px-6 py-10">
+    <main className="relative flex flex-1 flex-col items-center gap-6 px-6 py-10">
       <SessionHeader roomId={roomId} />
       <VideoStage localVideoRef={localVideoRef} remoteVideoRef={remoteVideoRef} />
 
+      {sessionStarted && (
+        <p className="text-sm text-neutral-500">
+          Photo {Math.min(round + 1, totalRounds)} of {totalRounds}
+        </p>
+      )}
+
       {countdown !== null && <CountdownOverlay secondsLeft={countdown} />}
 
-      {countdown === null && (
+      {!sessionStarted && countdown === null && (
         <button
           onClick={startCountdown}
           className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white hover:bg-neutral-700"
         >
-          Start countdown
+          Start photo session
         </button>
       )}
+
+      {status === "flash" && <div className="animate-flash pointer-events-none fixed inset-0 bg-white" />}
     </main>
   );
 }
