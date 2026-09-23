@@ -95,3 +95,21 @@ body {
 .animate-print-strip {
   animation: print-strip 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+@keyframes strip-feed {
+  0%,
+  10% {
+    transform: translateY(-100%);
+  }
+  50%,
+  70% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}
+
+.animate-strip-feed {
+  animation: strip-feed 3s ease-in-out infinite;
+}

@@ -7,6 +7,7 @@ import { WaitingRoom } from "./_components/WaitingRoom";
 import { SessionHeader } from "./_components/SessionHeader";
 import { VideoStage } from "./_components/VideoStage";
 import { CountdownOverlay } from "./_components/CountdownOverlay";
+import { PrintingAnimation } from "./_components/PrintingAnimation";
 
 export default function SessionPage() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -19,8 +20,7 @@ export default function SessionPage() {
   if (status === "developing") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 bg-velvet-red px-6 text-center text-amber-50">
-        {/* TODO: replace with the vintage "photo being printed" animation */}
-        <p className="animate-pulse text-lg">Developing your photo…</p>
+        <PrintingAnimation />
       </main>
     );
   }
