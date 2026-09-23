@@ -39,6 +39,7 @@ export class RoomConnection {
   private localStream: MediaStream | null = null;
   private remotePeerId: string | null = null;
   private negotiationStarted = false;
+  private left = false;
 
   constructor(
     private roomId: string,
@@ -46,7 +47,18 @@ export class RoomConnection {
   ) {}
 
   async join() {
-    this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+
+    // React Strict Mode (dev only) double-invokes effects, so `leave()` can
+    // run before this await resolves, while nothing had been created yet to
+    // clean up. Bail out here instead of building a channel this discarded
+    // instance will never use — and release the camera we just grabbed.
+    if (this.left) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+
+    this.localStream = stream;
     this.callbacks.onLocalStream?.(this.localStream);
 
     this.channel = supabase.channel(`room:${this.roomId}`, {
@@ -164,7 +176,11 @@ export class RoomConnection {
   }
 
   leave() {
-    this.channel?.unsubscribe();
+    this.left = true;
+    // removeChannel (not just unsubscribe) also drops it from the client's
+    // internal registry, so a same-topic channel() call afterwards creates a
+    // fresh channel instead of reusing this one mid-teardown.
+    if (this.channel) supabase.removeChannel(this.channel);
     this.pc?.close();
     this.localStream?.getTracks().forEach((track) => track.stop());
     this.channel = null;
