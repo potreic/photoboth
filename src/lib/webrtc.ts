@@ -13,6 +13,7 @@ export type RoomConnectionCallbacks = {
   onPeerLeft?: () => void;
   onCountdown?: (secondsLeft: number) => void;
   onCaptureTrigger?: () => void;
+  onPhotoReady?: (path: string) => void;
   onConnectionStateChange?: (state: RTCPeerConnectionState) => void;
 };
 
@@ -46,6 +47,13 @@ export class RoomConnection {
     private callbacks: RoomConnectionCallbacks = {}
   ) {}
 
+  // Same deterministic rule as the WebRTC offerer: exactly one side composites
+  // and uploads the shot, so there's a single canonical result instead of two
+  // devices racing to write slightly-different images to the same path.
+  get isLeader(): boolean {
+    return this.remotePeerId !== null && this.clientId < this.remotePeerId;
+  }
+
   async join() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
@@ -71,6 +79,9 @@ export class RoomConnection {
         this.callbacks.onCountdown?.((payload as { secondsLeft: number }).secondsLeft);
       })
       .on("broadcast", { event: "capture" }, () => this.callbacks.onCaptureTrigger?.())
+      .on("broadcast", { event: "photo-ready" }, ({ payload }) => {
+        this.callbacks.onPhotoReady?.((payload as { path: string }).path);
+      })
       .on("presence", { event: "sync" }, () => this.handlePresenceSync())
       .on("presence", { event: "leave" }, () => {
         this.remotePeerId = null;
@@ -173,6 +184,10 @@ export class RoomConnection {
       this.channel?.send({ type: "broadcast", event: "countdown", payload: { secondsLeft } });
       this.callbacks.onCountdown?.(secondsLeft);
     }, 1000);
+  }
+
+  broadcastPhotoReady(path: string) {
+    this.channel?.send({ type: "broadcast", event: "photo-ready", payload: { path } });
   }
 
   leave() {

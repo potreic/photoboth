@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RoomConnection } from "@/lib/webrtc";
 import { captureFrame } from "@/lib/capture";
+import { uploadShot } from "@/lib/storage";
+import { setRoomPhotoPath } from "@/lib/photo-session-store";
 
-export type SessionStatus = "connecting" | "waiting-for-partner" | "connected";
+export type SessionStatus = "connecting" | "waiting-for-partner" | "connected" | "developing";
 
 export function useRoomConnection(roomId: string) {
   const router = useRouter();
@@ -16,6 +18,11 @@ export function useRoomConnection(roomId: string) {
   const [countdown, setCountdown] = useState<number | null>(null);
 
   useEffect(() => {
+    function goToResult(path: string) {
+      setRoomPhotoPath(roomId, path);
+      router.push(`/result/${roomId}`);
+    }
+
     const connection = new RoomConnection(roomId, {
       onLocalStream: (stream) => {
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
@@ -27,14 +34,27 @@ export function useRoomConnection(roomId: string) {
       onPeerJoined: () => setStatus("connected"),
       onPeerLeft: () => setStatus("waiting-for-partner"),
       onCountdown: (secondsLeft) => setCountdown(secondsLeft),
-      onCaptureTrigger: () => {
+      // Both peers land here (whoever started the countdown, and whoever
+      // received the broadcast). Only the leader composites + uploads; the
+      // other side just waits on "developing" for the photo-ready broadcast
+      // below, so both navigate to /result together with the same photo.
+      onCaptureTrigger: async () => {
         setCountdown(null);
-        if (localVideoRef.current && remoteVideoRef.current) {
+        setStatus("developing");
+
+        if (!connectionRef.current?.isLeader) return;
+        if (!localVideoRef.current || !remoteVideoRef.current) return;
+
+        try {
           const dataUrl = captureFrame(localVideoRef.current, remoteVideoRef.current);
-          sessionStorage.setItem(`photoboth:${roomId}`, dataUrl);
+          const path = await uploadShot(roomId, dataUrl);
+          connectionRef.current?.broadcastPhotoReady(path);
+          goToResult(path);
+        } catch (error) {
+          console.error("Failed to upload captured photo", error);
         }
-        router.push(`/result/${roomId}`);
       },
+      onPhotoReady: (path) => goToResult(path),
     });
 
     connectionRef.current = connection;
